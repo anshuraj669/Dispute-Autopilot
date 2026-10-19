@@ -1,0 +1,38 @@
+{
+  "name": "dispute-autopilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI agent that investigates and resolves PayPal disputes for small merchants",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev",
+    "dev:tunnel": "tsx scripts/dev-tunnel.ts",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "check:sandbox": "tsx scripts/check-sandbox.ts",
+    "investigate": "tsx scripts/investigate.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "ag-grid-community": "^36.2.0",
+    "ag-grid-react": "^36.2.0",
+    "next": "^16.4.0",
+    "pdf-lib": "1.17.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19",
+    "cloudflared": "^0.7.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

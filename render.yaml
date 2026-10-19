@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: dispute-autopilot
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: PAYPAL_MODE
+        value: mock
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: NEXT_PUBLIC_PAYPAL_CLIENT_ID
+        sync: false
+      - key: MERCHANT_NAME
+        value: Lumen Candle Co.
+      - key: AUTO_ACCEPT_THRESHOLD
+        value: "15"
