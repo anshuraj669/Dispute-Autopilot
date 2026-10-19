@@ -12,7 +12,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "check:sandbox": "tsx scripts/check-sandbox.ts",
-    "investigate": "tsx scripts/investigate.ts"
+    "investigate": "tsx scripts/investigate.ts",
+    "test": "tsx --test \"test/**/*.test.ts\""
   },
   "engines": {
     "node": ">=22"

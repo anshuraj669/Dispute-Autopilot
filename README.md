@@ -60,6 +60,7 @@ npm run investigate -- PP-D-1003
 | `npm run dev:tunnel` | Sandbox mode with a Cloudflare tunnel and automatic PayPal webhook setup |
 | `npm run build` / `npm start` | Production build and server |
 | `npm run typecheck` | TypeScript check |
+| `npm test` | Unit and demo-mode integration tests (offline: no API keys, no PayPal, no Claude calls) |
 | `npm run check:sandbox` | Verify PayPal sandbox credentials, APIs and webhook |
 | `npm run investigate -- <id>` | Run the agent on one dispute from the terminal |
 
