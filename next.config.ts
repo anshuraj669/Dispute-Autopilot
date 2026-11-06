@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   turbopack: { root: process.cwd() },
   // Don't generate AGENTS.md for AI coding agents on `next dev`.
   agentRules: false,
+  experimental: {
+    agentUpgrade: "security",
+  },
 };
 
 export default nextConfig;
