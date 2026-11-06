@@ -48,13 +48,13 @@ export default function SettingsPage() {
       <section className="hero">
         <div className="rise">
           <p className="eyebrow">Your rules</p>
-          <h1 className="gradient-text">Settings</h1>
+          <h1>Settings</h1>
           <p className="sub">The policy the agent follows, how much it may do without asking you, and the numbers behind the impact figures.</p>
         </div>
       </section>
 
       <div className="settings-grid">
-        <section className="panel rise" style={{ "--i": 1 } as CSSProperties}>
+        <section className="panel rise">
           <h2>How much the agent may do alone</h2>
           <div className="choice" role="radiogroup" aria-label="Autonomy">
             <label className={!auto ? "on" : ""}>
@@ -92,7 +92,7 @@ export default function SettingsPage() {
           </fieldset>
         </section>
 
-        <section className="panel rise" style={{ "--i": 2 } as CSSProperties}>
+        <section className="panel rise">
           <h2>Policy the agent follows</h2>
           <label className="field">
             <span>Shop name</span>
@@ -116,7 +116,7 @@ export default function SettingsPage() {
           </label>
         </section>
 
-        <section className="panel rise" style={{ "--i": 3 } as CSSProperties}>
+        <section className="panel rise">
           <h2>Your economics</h2>
           <p className="sub" style={{ marginBottom: 14 }}>The fight-or-refund maths and the break-even win odds on every case come from these.</p>
           <label className="field">

@@ -5,7 +5,8 @@
 import { after } from "next/server";
 import { investigate } from "./agent";
 import { maybeActAlone } from "./autopilot";
-import { getCase, updateCase } from "./store";
+import { missedDisputes, watchingSince } from "./reconcile";
+import { allCases, getCase, updateCase } from "./store";
 import type { DisputeSummary } from "./types";
 
 // Disputes with a run in flight, so overlapping polls don't start a second one.
@@ -29,8 +30,23 @@ function run(disputeId: string, trigger: string | null) {
   });
 }
 
-export function onDisputeCreated(disputeId: string) {
+/**
+ * Starts the agent on a new dispute. PayPal redelivers webhooks, so a dispute
+ * that already has a case record is left alone: a repeat CREATED event must not
+ * wipe a decision the merchant may already have approved.
+ */
+export async function onDisputeCreated(disputeId: string): Promise<boolean> {
+  if (busy.has(disputeId) || (await getCase(disputeId))) return false;
   run(disputeId, null);
+  return true;
+}
+
+/** Starts the agent on open disputes whose CREATED webhook never arrived. Returns their IDs. */
+export async function catchMissedDisputes(disputes: Pick<DisputeSummary, "id" | "status" | "createdAt">[]): Promise<string[]> {
+  const missed = missedDisputes(disputes, await allCases(), await watchingSince());
+  const started: string[] = [];
+  for (const id of missed) if (await onDisputeCreated(id)) started.push(id);
+  return started;
 }
 
 /** Has the agent reconsider a case, e.g. after the merchant adds evidence. */

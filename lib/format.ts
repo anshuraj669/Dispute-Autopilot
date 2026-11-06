@@ -15,6 +15,19 @@ export const REASONS: Record<string, string> = {
 
 export const reasonLabel = (r: string) => REASONS[r] ?? r;
 
+/** Plain-English names for the agent's tools, as shown in its trace. */
+export const TOOL_LABELS: Record<string, string> = {
+  get_case_file: "Read the sourced case file",
+  get_dispute: "Read the dispute",
+  get_capture: "Looked up the payment",
+  get_order: "Opened the order",
+  search_transaction: "Checked the transaction record",
+  check_carrier_status: "Checked carrier tracking",
+  list_merchant_disputes: "Compared with past disputes",
+  get_merchant_policy: "Read your refund policy",
+  record_decision: "Recorded a decision",
+};
+
 export const money = (m: Money | null | undefined) =>
   m ? new Intl.NumberFormat("en-US", { style: "currency", currency: m.currency_code }).format(Number(m.value)) : "";
 

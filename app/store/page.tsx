@@ -180,7 +180,7 @@ export default function Store() {
   return (
     <>
       <p className="eyebrow rise">Demo store · PayPal sandbox checkout</p>
-      <h1 className="gradient-text rise">Lumen Candle Co.</h1>
+      <h1 className="rise">Lumen Candle Co.</h1>
       <p className="sub">
         Buy something with a PayPal sandbox buyer account, then open a dispute on it from{" "}
         <a href="https://www.sandbox.paypal.com/resolutioncenter" target="_blank" rel="noreferrer">the sandbox Resolution Center</a>.

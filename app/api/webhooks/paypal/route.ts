@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   }
 
   const disputeId: string | undefined = event.resource?.dispute_id;
-  if (disputeId && event.event_type === "CUSTOMER.DISPUTE.CREATED") onDisputeCreated(disputeId);
+  if (disputeId && event.event_type === "CUSTOMER.DISPUTE.CREATED") await onDisputeCreated(disputeId);
   // A buyer reply arrives as an update; re-investigate if it came after the last decision.
   if (disputeId && event.event_type === "CUSTOMER.DISPUTE.UPDATED") {
     await reactToBuyerReplies([summarize(await provider().getDispute(disputeId))]);

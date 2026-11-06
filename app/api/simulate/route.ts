@@ -17,12 +17,14 @@ export async function GET() {
 }
 
 // Creates a demo dispute and hands it to the same intake as a PayPal webhook.
+// With `dropWebhook`, the intake is skipped, as if PayPal's notification got
+// lost; the next dispute-list fetch has to catch it.
 export async function POST(req: Request) {
   if (provider().mode !== "mock") return demoOnly();
-  const body = (await req.json().catch(() => ({}))) as { scenario?: string };
+  const body = (await req.json().catch(() => ({}))) as { scenario?: string; dropWebhook?: boolean };
   const scenario = SCENARIOS.find((s) => s.id === body.scenario)?.id as ScenarioId | undefined;
   const created = simulateDispute(scenario);
-  onDisputeCreated(created.disputeId);
+  if (!body.dropWebhook) await onDisputeCreated(created.disputeId);
   return NextResponse.json(created);
 }
 

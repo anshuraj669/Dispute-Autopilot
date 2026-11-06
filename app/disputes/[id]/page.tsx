@@ -8,8 +8,8 @@ import type { Score } from "@/lib/score";
 import type { Checklist, ChecklistItem } from "@/lib/evidence";
 import type { Contradiction, Verification } from "@/lib/integrity";
 import type { Permissions } from "@/lib/guard";
-import { daysUntil, humanStatus, money, reasonLabel } from "@/lib/format";
-import { Ring, Tilt } from "../../components/spatial";
+import { daysUntil, humanStatus, money, reasonLabel, TOOL_LABELS } from "@/lib/format";
+import { Ring, Card } from "../../components/spatial";
 
 type View = {
   dispute: any;
@@ -85,7 +85,7 @@ function WhyOdds({ v }: { v: View }) {
   const max = Math.max(...score.factors.map((f) => Math.abs(f.points)), 1);
   const agent = v.case?.decision?.agent_estimate;
   return (
-    <Tilt max={2} className="panel rise" style={{ "--i": 5 } as CSSProperties}>
+    <Card className="panel rise">
       <h2>Win odds, explained</h2>
       <div className="odds-head">
         <span className="odds-value">{pct(score.p)}</span>
@@ -98,7 +98,7 @@ function WhyOdds({ v }: { v: View }) {
           <span className="factor-val">{pct(score.baseP)}</span>
         </div>
         {score.factors.map((f, i) => (
-          <div key={f.key} className="factor rise" style={{ "--i": i } as CSSProperties} title={`Facts: ${f.facts.join(", ")}`}>
+          <div key={f.key} className="factor rise" title={`Facts: ${f.facts.join(", ")}`}>
             <span className="factor-label">{f.label}</span>
             <div className="factor-track">
               <div className={`factor-bar ${f.points >= 0 ? "pos" : "neg"}`} style={{ width: `${(Math.abs(f.points) / max) * 50}%` }} />
@@ -118,7 +118,7 @@ function WhyOdds({ v }: { v: View }) {
         A transparent model, not an AI guess: {model.name}
         {model.brier !== null && <> · Brier score {model.brier.toFixed(3)} on disputes it hadn't seen</>} · <a href="/accuracy">Track record →</a>
       </p>
-    </Tilt>
+    </Card>
   );
 }
 
@@ -152,7 +152,7 @@ function CollectForm({ id, item, onDone }: { id: string; item: ChecklistItem; on
       <textarea rows={2} maxLength={1000} placeholder="What it shows, with dates (e.g. 'Buyer emailed on Mar 2 asking to switch scents')" value={note} onChange={(e) => setNote(e.target.value)} aria-label="Note" />
       <div className="toolbar" style={{ margin: "8px 0 0" }}>
         <label className="btn small file-btn">
-          {file ? `📎 ${file.name}` : "Attach file"}
+          {file ? file.name : "Attach file"}
           <input type="file" accept="application/pdf,image/png,image/jpeg,image/gif" onChange={(e) => setFile(e.target.files?.[0] ?? null)} hidden />
         </label>
         <button className="btn small primary" onClick={save} disabled={busy || (!note.trim() && !file)}>{busy ? "Saving…" : "Add to the case"}</button>
@@ -173,7 +173,7 @@ function EvidenceGaps({ v, id, reload, closed }: { v: View; id: string; reload: 
     reload();
   };
   return (
-    <Tilt max={2} className="panel rise" style={{ "--i": 6 } as CSSProperties}>
+    <Card className="panel rise">
       <h2>Evidence checklist</h2>
       <p className="sub" style={{ marginBottom: 12 }}>
         What PayPal looks for on {/^[aeiou]/i.test(reasonLabel(v.caseFile.reason)) ? "an" : "a"} {reasonLabel(v.caseFile.reason).toLowerCase()} claim.
@@ -205,7 +205,7 @@ function EvidenceGaps({ v, id, reload, closed }: { v: View; id: string; reload: 
           );
         })}
       </ul>
-    </Tilt>
+    </Card>
   );
 }
 
@@ -219,7 +219,7 @@ function CaseFilePanel({ v }: { v: View }) {
   const { facts, sources } = v.caseFile;
   const src = new Map(sources.map((s) => [s.id, s]));
   return (
-    <section className="panel rise" style={{ "--i": 7, marginTop: 18 } as CSSProperties}>
+    <section className="panel rise" style={{ marginTop: 18 } as CSSProperties}>
       <h2>Case file</h2>
       <p className="sub" style={{ marginBottom: 12 }}>
         Every fact the agent may cite, with the record it came from. The agent can't submit anything that isn't here.
@@ -272,18 +272,6 @@ function CaseFilePanel({ v }: { v: View }) {
     </section>
   );
 }
-
-const TOOL_LABELS: Record<string, string> = {
-  get_case_file: "Read the sourced case file",
-  get_dispute: "Read the dispute",
-  get_capture: "Looked up the payment",
-  get_order: "Opened the order",
-  search_transaction: "Checked the transaction record",
-  check_carrier_status: "Checked carrier tracking",
-  list_merchant_disputes: "Compared with past disputes",
-  get_merchant_policy: "Read your refund policy",
-  record_decision: "Recorded a decision",
-};
 
 /** Why a tool call failed, in one short line (the full error is in the tooltip). */
 function ToolError({ call }: { call: ToolCall }) {
@@ -388,22 +376,22 @@ export default function DisputePage({ params }: { params: Promise<{ id: string }
     <>
       <p className="rise"><a href="/">← All disputes</a></p>
       <div className="case-head">
-        <div className="rise" style={{ "--i": 1 } as CSSProperties}>
+        <div className="rise">
           <p className="eyebrow">{dispute.dispute_id} · {txn?.buyer?.name ?? "Unknown buyer"}</p>
-          <h1 className="gradient-text">{reasonLabel(dispute.reason)} · {money(dispute.dispute_amount)}</h1>
+          <h1>{reasonLabel(dispute.reason)} · {money(dispute.dispute_amount)}</h1>
           <div className="badges">
             <span className="pill neutral">{humanStatus(dispute.status)}</span>
             {investigating && <span className="pill live">Agent working <span className="dots"><i /><i /><i /></span></span>}
-            {leadDays !== null && leadDays > 0 && <span className="pill FIGHT">⚡ Drafted {leadDays.toFixed(1)} days before the deadline</span>}
+            {leadDays !== null && leadDays > 0 && <span className="pill FIGHT">Drafted {leadDays.toFixed(1)} days before the deadline</span>}
             {record?.execution?.ok && <span className="pill FIGHT">✓ {record.execution.action === "FIGHT" ? "Evidence sent" : "Refunded"}</span>}
-            {record?.execution?.ok && record.execution.auto && <span className="pill live" title={record.execution.auto}>🤖 Agent acted on its own</span>}
-            {dispute.dispute_outcome?.outcome_code === "CANCELED_BY_BUYER" && <span className="pill FIGHT">🎉 Buyer withdrew the claim</span>}
-            {dispute.dispute_outcome?.outcome_code === "RESOLVED_SELLER_FAVOUR" && <span className="pill FIGHT">🏆 PayPal ruled for you</span>}
+            {record?.execution?.ok && record.execution.auto && <span className="pill live" title={record.execution.auto}>Agent acted on its own</span>}
+            {dispute.dispute_outcome?.outcome_code === "CANCELED_BY_BUYER" && <span className="pill FIGHT">Buyer withdrew the claim</span>}
+            {dispute.dispute_outcome?.outcome_code === "RESOLVED_SELLER_FAVOUR" && <span className="pill FIGHT">PayPal ruled for you</span>}
             {dispute.dispute_outcome?.outcome_code === "RESOLVED_BUYER_FAVOUR" && record?.execution?.action === "FIGHT" && <span className="pill ACCEPT">PayPal ruled for the buyer</span>}
           </div>
         </div>
         {windowLeft !== null && daysLeft !== null && !isClosed && (
-          <div className="rise" style={{ "--i": 2 } as CSSProperties}>
+          <div className="rise">
             <Ring fraction={windowLeft} tone={daysLeft <= 2 ? "danger" : daysLeft <= 4 ? "warn" : "ok"}>
               <strong>{due !== null && due <= 0 ? "Today" : daysLeft.toFixed(1)}</strong>
               <span>{due !== null && due <= 0 ? "deadline" : "days to respond"}</span>
@@ -413,7 +401,7 @@ export default function DisputePage({ params }: { params: Promise<{ id: string }
       </div>
 
       <div className="grid2">
-        <Tilt max={3} className="panel rise" style={{ "--i": 3 } as CSSProperties}>
+        <Card className="panel rise">
           <h2>The case</h2>
           <dl className="facts">
             <dt>Items</dt>
@@ -461,9 +449,9 @@ export default function DisputePage({ params }: { params: Promise<{ id: string }
               </div>
             </div>
           )}
-        </Tilt>
+        </Card>
 
-        <section className="panel rise" style={{ "--i": 4 } as CSSProperties}>
+        <section className="panel rise">
           <h2>Agent</h2>
 
           {record?.trigger && (investigating || decision) && (
@@ -513,7 +501,7 @@ export default function DisputePage({ params }: { params: Promise<{ id: string }
               <div className="block">
                 <h3>Why</h3>
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  {decision.reasoning.map((r, i) => <li key={i} className="rise" style={{ "--i": i } as CSSProperties}>{r}</li>)}
+                  {decision.reasoning.map((r, i) => <li key={i} className="rise">{r}</li>)}
                 </ul>
               </div>
 
@@ -554,7 +542,7 @@ export default function DisputePage({ params }: { params: Promise<{ id: string }
                 <summary>How the agent got here ({record?.toolCalls.length} steps)</summary>
                 <ul className="trace" style={{ marginTop: 8 }}>
                   {record?.toolCalls.map((c, i) => (
-                    <li key={i} className={c.ok ? "" : "err"} style={{ "--i": i } as CSSProperties}>{TOOL_LABELS[c.tool] ?? c.tool}<ToolError call={c} /></li>
+                    <li key={i} className={c.ok ? "" : "err"}>{TOOL_LABELS[c.tool] ?? c.tool}<ToolError call={c} /></li>
                   ))}
                 </ul>
               </details>
@@ -568,7 +556,7 @@ export default function DisputePage({ params }: { params: Promise<{ id: string }
                 )}
                 {decision.action === "FIGHT" && (
                   <p style={{ margin: "0 0 12px" }}>
-                    <a href={`/api/disputes/${encodeURIComponent(id)}/packet`} target="_blank" rel="noreferrer">📄 Preview the evidence packet (PDF)</a>
+                    <a href={`/api/disputes/${encodeURIComponent(id)}/packet`} target="_blank" rel="noreferrer">Preview the evidence packet (PDF)</a>
                     <span className="sub" style={{ margin: 0, fontSize: 12.5 }}> · attached to the submission, with source fingerprints</span>
                   </p>
                 )}

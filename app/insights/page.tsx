@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import type { InsightsReport, ListingRewrite, ProductInsight } from "@/lib/insights";
-import { CountUp, Tilt } from "../components/spatial";
+import { CountUp, Card } from "../components/spatial";
 
 const usd = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 
@@ -90,7 +90,7 @@ function Rewrite({ product }: { product: string }) {
   return (
     <div className="block">
       {state !== "done" && (
-        <button className="btn glow" onClick={go} disabled={state === "busy"}>
+        <button className="btn primary" onClick={go} disabled={state === "busy"}>
           {state === "busy" ? <>Rewriting the listing <span className="dots"><i /><i /><i /></span></> : "✨ Rewrite the listing with AI"}
         </button>
       )}
@@ -122,7 +122,7 @@ function Rewrite({ product }: { product: string }) {
 function ProductCard({ p, i }: { p: ProductInsight; i: number }) {
   const r = risk(p);
   return (
-    <Tilt max={3} className="panel rise product-insight" style={{ "--i": i + 3 } as CSSProperties}>
+    <Card className="panel rise product-insight">
       <div className="pi-head">
         <div>
           <h2 style={{ marginBottom: 2 }}>{p.name}</h2>
@@ -164,7 +164,7 @@ function ProductCard({ p, i }: { p: ProductInsight; i: number }) {
       )}
 
       {(r.tone !== "good" || p.agentSuggestions.length > 0) && <Rewrite product={p.name} />}
-    </Tilt>
+    </Card>
   );
 }
 
@@ -189,7 +189,7 @@ export default function Insights() {
       <section className="hero">
         <div className="rise">
           <p className="eyebrow">Prevention</p>
-          <h1 className="gradient-text">Insights</h1>
+          <h1>Insights</h1>
           <p className="sub">Which products draw disputes, why, and what to change in the listing so the next buyer isn't surprised.</p>
         </div>
       </section>
@@ -200,24 +200,24 @@ export default function Insights() {
       {report && (
         <>
           <section className="kpis">
-            <Tilt className="kpi rise" style={{ "--i": 1 } as CSSProperties}>
-              <div className="label"><span className="icon" aria-hidden="true">📬</span>Disputes</div>
+            <Card className="kpi rise">
+              <div className="label">Disputes</div>
               <div className="value"><CountUp value={report.totals.disputes} format={(n) => String(Math.round(n))} /></div>
               <div className="note">{usd(report.totals.amount)} disputed in total</div>
-            </Tilt>
-            <Tilt className="kpi rise blue" style={{ "--i": 2 } as CSSProperties}>
-              <div className="label"><span className="icon" aria-hidden="true">🔎</span>Top reason</div>
+            </Card>
+            <Card className="kpi rise blue">
+              <div className="label">Top reason</div>
               <div className="value" style={{ fontSize: 22, paddingTop: 6 }}>{top?.label ?? "—"}</div>
               <div className="note">{top ? `${top.count} of ${report.totals.disputes} disputes` : ""}</div>
-            </Tilt>
-            <Tilt className="kpi rise hero-kpi" style={{ "--i": 3 } as CSSProperties}>
-              <div className="label"><span className="icon" aria-hidden="true">🤝</span>Withdrawn after a message</div>
+            </Card>
+            <Card className="kpi rise hero-kpi">
+              <div className="label">Withdrawn after a message</div>
               <div className="value"><CountUp value={report.totals.withdrawn} format={(n) => String(Math.round(n))} /></div>
               <div className="note">buyers who closed the case themselves</div>
-            </Tilt>
+            </Card>
           </section>
 
-          <section className="panel rise" style={{ "--i": 4, marginBottom: 18 } as CSSProperties}>
+          <section className="panel rise" style={{ marginBottom: 18 } as CSSProperties}>
             <h2>Why buyers dispute</h2>
             <ReasonBars reasons={report.reasons} />
           </section>

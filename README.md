@@ -17,7 +17,7 @@ What makes it more than "an LLM that writes evidence":
 
 ## What it does
 
-- **Wakes up on its own.** A PayPal `CUSTOMER.DISPUTE.CREATED` webhook starts the investigation in the background.
+- **Wakes up on its own, and doesn't depend on the webhook arriving.** A PayPal `CUSTOMER.DISPUTE.CREATED` webhook starts the investigation in the background. Webhooks get lost (a tunnel restarts, the server is down), so every fetch of the dispute list also reconciles against PayPal: an open dispute that arrived while the app was watching but has no case yet is picked up then. PayPal redelivers webhooks, so a repeated `CREATED` event is ignored instead of restarting a case that's already decided.
 - **Investigates with real PayPal data.** It uses the Disputes, Payments (captures), Orders, Transaction Search and Tracking APIs.
 - **Decides fight or refund.** It estimates the chance of winning, applies the merchant's refund policy and an "it's cheaper to refund" threshold, and explains its reasoning.
 - **Acts after approval.** It submits evidence (`provide-evidence`) or accepts the claim (`accept-claim`, which refunds the buyer) through the PayPal API.
@@ -40,7 +40,7 @@ cp .env.example .env        # then set ANTHROPIC_API_KEY
 npm run dev                 # open http://localhost:3000
 ```
 
-`PAYPAL_MODE=mock` (the default) serves built-in sample disputes shaped exactly like PayPal sandbox responses. There are four open cases (a delivered package marked "not received", a small "not as described" claim, a "friendly fraud" unauthorized claim, and an order that never shipped) plus resolved history. Click **Investigate all open** to watch the agent work, or **⚡ Simulate dispute** to have a new dispute arrive. You can pick a scenario (a "never arrived" claim with porch-delivery proof, friendly fraud, a gift shipped to another address, an order that never shipped, or a repeat size complaint). The new dispute goes through the same intake as a PayPal webhook, so the agent picks it up on its own. **Reset demo** in the same menu removes the simulated disputes.
+`PAYPAL_MODE=mock` (the default) serves built-in sample disputes shaped exactly like PayPal sandbox responses. There are four open cases (a delivered package marked "not received", a small "not as described" claim, a "friendly fraud" unauthorized claim, and an order that never shipped) plus resolved history. Click **Investigate all open** to watch the agent work, or **Simulate dispute** to have a new dispute arrive. You can pick a scenario (a "never arrived" claim with porch-delivery proof, friendly fraud, a gift shipped to another address, an order that never shipped, or a repeat size complaint). The new dispute goes through the same intake as a PayPal webhook, so the agent picks it up on its own. **Lose PayPal's notification** in the same menu opens a dispute without the webhook, to show the reconciliation catching it. **Reset demo** removes the simulated disputes.
 
 On a case page, click **Send to buyer** under the agent's draft message. In demo mode the simulated buyer answers a few seconds later. Some of them withdraw the claim, and the agent re-investigates the others with the new information. To see autonomy, open **Settings**, choose *Handle small disputes alone*, and simulate the "Small not as described" scenario.
 

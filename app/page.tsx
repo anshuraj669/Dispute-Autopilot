@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { AgGridReact } from "ag-grid-react";
 import {
   AllCommunityModule,
@@ -12,13 +12,13 @@ import {
 } from "ag-grid-community";
 import type { CaseRecord, DisputeSummary } from "@/lib/types";
 import type { Assumptions, ExpectedValue, Impact } from "@/lib/impact";
-import { daysUntil, humanStatus, money, reasonLabel } from "@/lib/format";
-import { CountUp, Tilt } from "./components/spatial";
+import { daysUntil, humanStatus, money, reasonLabel, TOOL_LABELS } from "@/lib/format";
+import { CountUp, Card } from "./components/spatial";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 type Row = DisputeSummary & { case: CaseRecord | null; ev: ExpectedValue | null };
-type Scenario = { id: string; label: string; hint: string };
+type Scenario = { id: string; expect: "FIGHT" | "ACCEPT"; label: string; hint: string };
 type Toast = { key: number; title: string; body: string; href?: string; leaving?: boolean };
 
 const theme = themeQuartz.withParams({
@@ -92,7 +92,7 @@ function statusText(r: Row): string {
 
 function StatusCell({ data }: ICellRendererParams<Row>) {
   if (!data) return null;
-  if (data.outcome === "CANCELED_BY_BUYER") return <span className="pill FIGHT">🎉 buyer withdrew</span>;
+  if (data.outcome === "CANCELED_BY_BUYER") return <span className="pill FIGHT">buyer withdrew</span>;
   if (data.outcome === "RESOLVED_SELLER_FAVOUR") return <span className="status status-good"><span aria-hidden="true">✓</span> PayPal ruled for you</span>;
   if (data.outcome === "RESOLVED_BUYER_FAVOUR" && data.case?.execution?.action === "FIGHT") return <span className="status status-critical"><span aria-hidden="true">✕</span> lost the fight</span>;
   if (data.case?.status === "executed") {
@@ -116,15 +116,62 @@ function OpenCell({ data }: ICellRendererParams<Row>) {
   );
 }
 
-function Kpi({ i, label, icon, value, format, note, tone = "" }: {
-  i: number; label: string; icon: string; value: number; format: (n: number) => string; note?: string; tone?: string;
+function Kpi({ label, value, format, note, tone = "" }: {
+  label: string; value: number; format: (n: number) => string; note?: string; tone?: string;
 }) {
   return (
-    <Tilt className={`kpi rise ${tone}`} style={{ "--i": i } as CSSProperties}>
-      <div className="label"><span className="icon" aria-hidden="true">{icon}</span>{label}</div>
+    <Card className={`kpi rise ${tone}`}>
+      <div className="label">{label}</div>
       <div className="value"><CountUp value={value} format={format} /></div>
       <div className="note">{note}</div>
-    </Tilt>
+    </Card>
+  );
+}
+
+/** What the agent is doing right now, from the latest tool call on a case under investigation. */
+function AgentPulse({ working }: { working: Row[] }) {
+  const busy = working.length > 0;
+  const last = working[0]?.case?.toolCalls.at(-1);
+  return (
+    <div className={`pulse ${busy ? "busy" : ""}`} aria-live="polite">
+      <span className="pulse-orb" aria-hidden="true"><i /></span>
+      <div>
+        <strong>{busy ? `Investigating ${working.length} dispute${working.length === 1 ? "" : "s"}` : "Agent on watch"}</strong>
+        <span>
+          {busy
+            ? `${working[0].id} · ${last ? TOOL_LABELS[last.tool] ?? last.tool : "Reading the case"}…`
+            : "Picks up new disputes from PayPal, even when a notification goes missing"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ApprovalCard({ row }: { row: Row }) {
+  const d = row.case!.decision!;
+  const odds = Math.round(d.win_probability * 100);
+  const due = daysUntil(row.sellerResponseDueDate ?? null);
+  return (
+    <Card className={`glass q-card rise ${d.action}`}>
+      <a className="q-link" href={`/disputes/${encodeURIComponent(row.id)}`} aria-label={`Review ${row.id}`} />
+      <div className="q-top">
+        <span className={`pill ${d.action}`}>{d.action === "FIGHT" ? "Fight" : "Refund"}</span>
+        {due !== null && <span className={`pill ${due <= 3 ? "urgent" : "neutral"}`}>{due <= 0 ? "Due today" : `${due}d left`}</span>}
+      </div>
+      <div className="q-amount">{money(row.amount)}</div>
+      <div className="q-who">{row.buyerName} · {reasonLabel(row.reason)}</div>
+      <p className="q-headline">{d.headline}</p>
+      <div className="q-odds">
+        <div className="meter"><span style={{ width: `${odds}%` }} /></div>
+        <span>{odds}% win odds</span>
+      </div>
+      <div className="q-foot">
+        {row.ev ? (
+          <span className={row.ev.fightEdge >= 0 ? "edge-pos" : "edge-neg"}>{signedUsd(row.ev.fightEdge)} vs refunding</span>
+        ) : <span />}
+        <span className="q-cta">Review →</span>
+      </div>
+    </Card>
   );
 }
 
@@ -173,10 +220,18 @@ export default function Dashboard() {
     }
     known.current = new Set(next.map((r) => r.id));
     setRows(next);
+    const caughtUp: string[] = json.caughtUp ?? [];
+    if (caughtUp.length) {
+      toast({
+        title: `Picked up ${caughtUp.length} missed dispute${caughtUp.length === 1 ? "" : "s"}`,
+        body: `PayPal's notification for ${caughtUp.join(", ")} never arrived. The agent found ${caughtUp.length === 1 ? "it" : "them"} in the dispute list and is investigating.`,
+      });
+      setWatching((w) => [...w, ...caughtUp.filter((id) => !w.includes(id))]);
+    }
     setImpact(json.impact);
     setAssume(json.assumptions);
     setMode(json.mode);
-  }, [markFresh]);
+  }, [markFresh, toast]);
 
   useEffect(() => {
     load();
@@ -219,16 +274,33 @@ export default function Dashboard() {
       if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
     };
     window.addEventListener("pointerdown", close);
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     return () => window.removeEventListener("pointerdown", close);
   }, [menuOpen]);
 
-  const simulate = async (scenario?: string) => {
+  // Arrow keys move between items, Escape closes and hands focus back to the trigger.
+  const onMenuKey = (e: KeyboardEvent) => {
+    if (!menuOpen) return;
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === "Escape") {
+      setMenuOpen(false);
+      menuRef.current?.querySelector<HTMLElement>(".btn")?.focus();
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      items[(at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+    }
+  };
+
+  const simulate = async (scenario?: string, dropWebhook = false) => {
     setMenuOpen(false);
     setSimulating(true);
-    const res = await fetch("/api/simulate", { method: "POST", body: JSON.stringify({ scenario }) });
+    const res = await fetch("/api/simulate", { method: "POST", body: JSON.stringify({ scenario, dropWebhook }) });
     const json = await res.json();
     setSimulating(false);
     if (!res.ok) return setError(json.error);
+    // No webhook: the dispute-list sync in load() has to find it, and announces it.
+    if (dropWebhook) return load();
     const label = scenarios.find((s) => s.id === json.scenario)?.label ?? "New dispute";
     toast({ title: `Dispute opened · ${json.disputeId}`, body: `${label}. The agent picked it up and is investigating.`, href: `/disputes/${encodeURIComponent(json.disputeId)}` });
     setWatching((w) => [...w, json.disputeId]);
@@ -270,6 +342,11 @@ export default function Dashboard() {
   const open = rows.filter(isOpen);
   const atStake = open.reduce((sum, r) => sum + Number(r.amount.value), 0);
   const awaiting = rows.filter((r) => isOpen(r) && r.case?.status === "awaiting_approval");
+  const working = rows.filter((r) => r.case?.status === "investigating" || running.includes(r.id));
+  const awaitingCards = awaiting
+    .filter((r) => r.case?.decision)
+    .sort((a, b) => (daysUntil(a.sellerResponseDueDate ?? null) ?? 99) - (daysUntil(b.sellerResponseDueDate ?? null) ?? 99));
+  const protectedTotal = (impact?.protectedApproved ?? 0) + (impact?.protectedPending ?? 0);
   const insights = rows.map((r) => r.case?.decision?.listing_insight).filter((i): i is string => Boolean(i));
   const nextDue = impact?.nextDeadlineDays ?? null;
 
@@ -332,37 +409,55 @@ export default function Dashboard() {
   return (
     <>
       <section className="hero">
-        <div className="rise" style={{ "--i": 0 } as CSSProperties}>
+        <div className="rise">
           <p className="eyebrow">Dispute desk · {mode === "sandbox" ? "live PayPal sandbox" : "demo data"}</p>
-          <h1 className="gradient-text">Disputes</h1>
+          <h1>Disputes</h1>
           <p className="sub">The agent investigates every dispute, works out whether fighting beats refunding, and waits for your approval.</p>
         </div>
-        <div className="toolbar rise" style={{ "--i": 1, marginBottom: 0 } as CSSProperties}>
+        <div className="toolbar rise" style={{ marginBottom: 0 } as CSSProperties}>
           {mode === "mock" && scenarios.length > 0 && (
-            <div className="sim" ref={menuRef}>
-              <button className="btn glow" onClick={() => setMenuOpen((o) => !o)} disabled={simulating} aria-expanded={menuOpen}>
-                {simulating ? "Opening dispute…" : "⚡ Simulate dispute"}
+            <div className="sim" ref={menuRef} onKeyDown={onMenuKey}>
+              <button className="btn" onClick={() => setMenuOpen((o) => !o)} disabled={simulating} aria-haspopup="menu" aria-expanded={menuOpen}>
+                {simulating ? <>Opening dispute <span className="dots"><i /><i /><i /></span></> : <>Simulate dispute <span className="caret" aria-hidden="true" /></>}
               </button>
               {menuOpen && (
-                <div className="sim-menu" role="menu">
-                  <button role="menuitem" onClick={() => simulate()} style={{ "--i": 0 } as CSSProperties}>
-                    <strong>🎲 Surprise me</strong>
-                    <span>A random scenario, like a real day at the shop</span>
+                <div className="sim-menu" role="menu" aria-label="Simulate a dispute">
+                  <button role="menuitem" onClick={() => simulate()}>
+                    <span className="sim-text">
+                      <strong>Surprise me</strong>
+                      <span>A random scenario, like a real day at the shop</span>
+                    </span>
                   </button>
+                  <hr className="sim-divider" />
+                  <p className="sim-section">Open a specific dispute</p>
                   {scenarios.map((s, i) => (
-                    <button key={s.id} role="menuitem" onClick={() => simulate(s.id)} style={{ "--i": i + 1 } as CSSProperties}>
-                      <strong>{s.label}</strong>
-                      <span>{s.hint}</span>
+                    <button key={s.id} role="menuitem" onClick={() => simulate(s.id)}>
+                      <span className="sim-text">
+                        <strong>{s.label}</strong>
+                        <span>{s.hint}</span>
+                      </span>
+                      <span className={`sim-expect ${s.expect}`} title="The right call for this scenario">{s.expect === "FIGHT" ? "fight" : "refund"}</span>
                     </button>
                   ))}
-                  <hr />
-                  <button role="menuitem" onClick={rule} style={{ "--i": scenarios.length + 1 } as CSSProperties}>
-                    <strong>⚖️ PayPal rules on submitted cases</strong>
-                    <span>Fast-forward: decide every dispute under review</span>
+                  <hr className="sim-divider" />
+                  <p className="sim-section">Demo controls</p>
+                  <button role="menuitem" onClick={() => simulate(undefined, true)}>
+                    <span className="sim-text">
+                      <strong>Lose PayPal's notification</strong>
+                      <span>Open a dispute without the webhook; the next sync catches it</span>
+                    </span>
                   </button>
-                  <button role="menuitem" onClick={clearSimulated} style={{ "--i": scenarios.length + 2 } as CSSProperties}>
-                    <strong>Reset demo</strong>
-                    <span>Remove every simulated dispute</span>
+                  <button role="menuitem" onClick={rule}>
+                    <span className="sim-text">
+                      <strong>PayPal rules on submitted cases</strong>
+                      <span>Fast-forward: decide every dispute under review</span>
+                    </span>
+                  </button>
+                  <button role="menuitem" className="sim-danger" onClick={clearSimulated}>
+                    <span className="sim-text">
+                      <strong>Reset demo</strong>
+                      <span>Remove every simulated dispute</span>
+                    </span>
                   </button>
                 </div>
               )}
@@ -375,15 +470,51 @@ export default function Dashboard() {
         </div>
       </section>
 
+      <section className="impact glass rise">
+        <div className="impact-main">
+          <p className="eyebrow">Money protected by the autopilot</p>
+          <div className="impact-value"><CountUp value={protectedTotal} format={(n) => usd(n)} /></div>
+          <p className="impact-note">
+            {impact
+              ? impact.recovered
+                ? `${usd(impact.recovered)} recovered outright · ${impact.withdrawn} withdrawn by buyers`
+                : `${usd(impact.protectedApproved)} approved · ${usd(impact.protectedPending)} waiting on you`
+              : "Loading…"}
+          </p>
+          <AgentPulse working={working} />
+        </div>
+        <dl className="impact-stats">
+          <div>
+            <dt>Better than refunding everything</dt>
+            <dd className="violet"><CountUp value={impact?.edgeVsRefundAll ?? 0} format={(n) => usd(n)} /></dd>
+            <span>{impact?.projectedWinRate != null ? `${Math.round(impact.projectedWinRate * 100)}% projected win rate on fights` : "no fights yet"}</span>
+          </div>
+          <div>
+            <dt>Hours saved</dt>
+            <dd><CountUp value={impact?.hoursSaved ?? 0} format={(n) => n.toFixed(1)} /></dd>
+            <span>
+              {impact && assume
+                ? `${impact.handled} disputes × ${assume.manualMinutes} min${impact.autoActed ? ` · ${impact.autoActed} handled alone` : ""}`
+                : ""}
+            </span>
+          </div>
+          <div>
+            <dt>Deadlines met</dt>
+            <dd className="blue">
+              <CountUp value={impact?.executed ? (impact.deadlinesMet / impact.executed) * 100 : 0} format={(n) => (impact?.executed ? `${Math.round(n)}%` : "—")} />
+            </dd>
+            <span>{impact?.avgLeadDays != null ? `drafted ${impact.avgLeadDays.toFixed(1)} days early, on average` : "nothing drafted yet"}</span>
+          </div>
+        </dl>
+      </section>
+
       <div className="kpi-group">
-        <p className="eyebrow rise" style={{ "--i": 2 } as CSSProperties}>Right now</p>
+        <p className="eyebrow rise">Right now</p>
         <section className="kpis">
-          <Kpi i={3} icon="📬" label="Open disputes" value={open.length} format={(n) => String(Math.round(n))} note={`${rows.length} in total`} />
-          <Kpi i={4} icon="💵" label="Money at stake" value={atStake} format={(n) => usd(n)} note="across open disputes" />
-          <Kpi i={5} icon="✋" label="Waiting for your approval" value={awaiting.length} format={(n) => String(Math.round(n))} tone="blue" note={awaiting.length ? "the agent has drafted these" : "nothing waiting"} />
+          <Kpi label="Open disputes" value={open.length} format={(n) => String(Math.round(n))} note={`${rows.length} in total`} />
+          <Kpi label="Money at stake" value={atStake} format={(n) => usd(n)} note="across open disputes" />
+          <Kpi label="Waiting for your approval" value={awaiting.length} format={(n) => String(Math.round(n))} tone="blue" note={awaiting.length ? "the agent has drafted these" : "nothing waiting"} />
           <Kpi
-            i={6}
-            icon="⏳"
             label="Next deadline"
             value={nextDue === null ? 0 : Math.max(0, nextDue)}
             format={(n) => (nextDue === null ? "—" : `${n.toFixed(1)} days`)}
@@ -392,66 +523,28 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <div className="kpi-group">
-        <p className="eyebrow rise" style={{ "--i": 7 } as CSSProperties}>What the autopilot has done</p>
-        <section className="kpis">
-          <Kpi
-            i={8}
-            icon="🛡️"
-            tone="hero-kpi"
-            label="Money protected"
-            value={(impact?.protectedApproved ?? 0) + (impact?.protectedPending ?? 0)}
-            format={(n) => usd(n)}
-            note={
-              impact
-                ? impact.recovered
-                  ? `${usd(impact.recovered)} recovered · ${impact.withdrawn} withdrawn by buyers`
-                  : `${usd(impact.protectedApproved)} approved · ${usd(impact.protectedPending)} awaiting you`
-                : ""
-            }
-          />
-          <Kpi
-            i={9}
-            icon="📈"
-            tone="violet"
-            label="Better than refunding everything"
-            value={impact?.edgeVsRefundAll ?? 0}
-            format={(n) => usd(n)}
-            note={impact?.projectedWinRate != null ? `${Math.round(impact.projectedWinRate * 100)}% projected win rate on fights` : "no fights yet"}
-          />
-          <Kpi
-            i={10}
-            icon="⏱️"
-            label="Hours saved"
-            value={impact?.hoursSaved ?? 0}
-            format={(n) => n.toFixed(1)}
-            note={
-              impact && assume
-                ? `${impact.handled} disputes × ${assume.manualMinutes} min${impact.autoActed ? ` · ${impact.autoActed} handled alone` : ""}`
-                : ""
-            }
-          />
-          <Kpi
-            i={11}
-            icon="🎯"
-            label="Deadlines met"
-            value={impact?.executed ? (impact.deadlinesMet / impact.executed) * 100 : 0}
-            format={(n) => (impact?.executed ? `${Math.round(n)}%` : "—")}
-            tone="blue"
-            note={impact?.avgLeadDays != null ? `drafted ${impact.avgLeadDays.toFixed(1)} days before due, on average` : "nothing drafted yet"}
-          />
+      {awaitingCards.length > 0 && (
+        <section className="queue">
+          <div className="queue-head rise">
+            <h2>Waiting for your approval <span className="count">{awaitingCards.length}</span></h2>
+            <p className="sub">Investigated and drafted by the agent, soonest deadline first.</p>
+          </div>
+          <div className="queue-cards">
+            {awaitingCards.slice(0, 3).map((r) => <ApprovalCard key={r.id} row={r} />)}
+          </div>
+          {awaitingCards.length > 3 && <p className="sub queue-more">+{awaitingCards.length - 3} more in the table below</p>}
         </section>
-      </div>
+      )}
 
       {insights.length > 0 && (
-        <div className="insight rise" style={{ "--i": 12, marginBottom: 18 } as CSSProperties}>
+        <div className="insight rise" style={{ marginBottom: 18 } as CSSProperties}>
           <strong>Product insight:</strong> {insights[0]}
         </div>
       )}
 
       {error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
 
-      <div className="toolbar rise" style={{ "--i": 13 } as CSSProperties}>
+      <div className="toolbar rise">
         <input
           className="search"
           style={{ maxWidth: 320 }}
@@ -471,11 +564,11 @@ export default function Dashboard() {
             })
           }
         >
-          ⬇ Export CSV
+          Export CSV
         </button>
       </div>
 
-      <div className="glass grid-shell rise" style={{ "--i": 14 } as CSSProperties}>
+      <div className="glass grid-shell rise">
         <AgGridReact<Row>
           quickFilterText={query}
           theme={theme}
@@ -490,7 +583,7 @@ export default function Dashboard() {
         />
       </div>
       {assume && (
-        <p className="sub rise" style={{ "--i": 15, marginTop: 12, fontSize: 12.5 } as CSSProperties}>
+        <p className="sub rise" style={{ marginTop: 12, fontSize: 12.5 } as CSSProperties}>
           Fight vs refund = refund cost − (1 − win odds) × (amount + {usd(assume.disputeFee)} dispute fee). Change the fee and minutes per dispute in <a href="/settings">Settings</a>.
         </p>
       )}

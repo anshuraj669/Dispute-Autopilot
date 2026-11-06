@@ -365,11 +365,11 @@ const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
 const digits = (n: number) => Array.from({ length: n }, () => Math.floor(Math.random() * 10)).join("");
 
 export const SCENARIOS = [
-  { id: "porch", label: "\u201cNever arrived\u201d, but delivered", hint: "Tracking shows a porch drop-off with photo" },
-  { id: "friendly-fraud", label: "\u201cUnauthorized\u201d, but buyer chatted", hint: "Buyer messaged about the order, signature on delivery" },
-  { id: "gift", label: "Shipped to a different address", hint: "Delivered to a gift recipient, not the payer" },
-  { id: "never-shipped", label: "Seller never shipped", hint: "No tracking at all: a refund is right" },
-  { id: "tiny", label: "Small \u201cnot as described\u201d", hint: "Repeat complaint about the Mini Amber size" },
+  { id: "porch", expect: "FIGHT", label: "\u201cNever arrived\u201d, but delivered", hint: "Tracking shows a porch drop-off with photo" },
+  { id: "friendly-fraud", expect: "FIGHT", label: "\u201cUnauthorized\u201d, but buyer chatted", hint: "Buyer messaged about the order, signature on delivery" },
+  { id: "gift", expect: "FIGHT", label: "Shipped to a different address", hint: "Delivered to a gift recipient, not the payer" },
+  { id: "never-shipped", expect: "ACCEPT", label: "Seller never shipped", hint: "No tracking at all: a refund is right" },
+  { id: "tiny", expect: "ACCEPT", label: "Small \u201cnot as described\u201d", hint: "Repeat complaint about the Mini Amber size" },
 ] as const;
 
 export type ScenarioId = (typeof SCENARIOS)[number]["id"];

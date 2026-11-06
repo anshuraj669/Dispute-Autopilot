@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import type { LearningReport } from "@/lib/learning";
-import { CountUp, Tilt } from "../components/spatial";
+import { CountUp, Card } from "../components/spatial";
 
 const pct = (p: number | null) => (p === null ? "—" : `${Math.round(p * 100)}%`);
 
@@ -29,7 +29,7 @@ function Reliability({ bins }: { bins: LearningReport["reliability"] }) {
           b.predicted === null || b.actual === null ? null : (
             <g key={b.bin} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
               <circle cx={x(b.predicted)} cy={y(b.actual)} r={14} fill="transparent" />
-              <circle cx={x(b.predicted)} cy={y(b.actual)} r={5 + (b.n / maxN) * 7} className="rel-dot" style={{ "--i": i } as CSSProperties} />
+              <circle cx={x(b.predicted)} cy={y(b.actual)} r={5 + (b.n / maxN) * 7} className="rel-dot" />
             </g>
           ),
         )}
@@ -89,7 +89,7 @@ export default function Accuracy() {
       <section className="hero">
         <div className="rise">
           <p className="eyebrow">Outcome learning</p>
-          <h1 className="gradient-text">Track record</h1>
+          <h1>Track record</h1>
           <p className="sub">Every estimate is frozen when the agent decides, then checked against what PayPal actually ruled. The model refits itself on those outcomes.</p>
         </div>
       </section>
@@ -107,30 +107,30 @@ export default function Accuracy() {
           )}
 
           <section className="kpis">
-            <Tilt className="kpi rise" style={{ "--i": 1 } as CSSProperties}>
-              <div className="label"><span className="icon" aria-hidden="true">📚</span>Resolved disputes learned from</div>
+            <Card className="kpi rise">
+              <div className="label">Resolved disputes learned from</div>
               <div className="value"><CountUp value={r.n} format={(n) => String(Math.round(n))} /></div>
               <div className="note">{r.usingLearned ? "Learned weights are live" : r.n >= r.minExamples ? "Learned weights on probation" : `Starting rules until ${r.minExamples}`}</div>
-            </Tilt>
-            <Tilt className="kpi rise blue" style={{ "--i": 2 } as CSSProperties}>
-              <div className="label"><span className="icon" aria-hidden="true">🎯</span>Error on unseen disputes</div>
+            </Card>
+            <Card className="kpi rise blue">
+              <div className="label">Error on unseen disputes</div>
               <div className="value">{(r.usingLearned ? r.holdout.brier.learned : r.holdout.brier.prior)?.toFixed(3) ?? "—"}</div>
               <div className="note">Brier score of the live model on {r.holdout.n} disputes it hadn't seen; 0 is perfect, 0.25 is a coin flip</div>
-            </Tilt>
-            <Tilt className={`kpi rise ${improved !== null && improved >= 0 ? "hero-kpi" : ""}`} style={{ "--i": 3 } as CSSProperties}>
-              <div className="label"><span className="icon" aria-hidden="true">📈</span>Learning vs the starting rules</div>
+            </Card>
+            <Card className={`kpi rise ${improved !== null && improved >= 0 ? "hero-kpi" : ""}`}>
+              <div className="label">Learning vs the starting rules</div>
               <div className="value">{improved === null ? "—" : `${improved >= 0 ? "−" : "+"}${Math.abs(improved).toFixed(0)}%`}</div>
               <div className="note">{improved === null ? "not enough data yet" : improved >= 0 ? "less prediction error, so learned weights are live" : "more error, so the starting rules stay live"}</div>
-            </Tilt>
+            </Card>
           </section>
 
           <div className="grid2">
-            <section className="panel rise" style={{ "--i": 4 } as CSSProperties}>
+            <section className="panel rise">
               <h2>Are the odds honest?</h2>
               <p className="sub" style={{ marginBottom: 8 }}>{r.holdout.n} disputes, each predicted by a model trained only on earlier ones.</p>
               <Reliability bins={r.reliability} />
             </section>
-            <section className="panel rise" style={{ "--i": 5 } as CSSProperties}>
+            <section className="panel rise">
               <h2>Prediction error by method</h2>
               <p className="sub" style={{ marginBottom: 12 }}>Brier score on the same disputes, each predicted before its outcome was known. Shorter is better.</p>
               <BrierBars h={r.holdout} />
@@ -145,7 +145,7 @@ export default function Accuracy() {
             </section>
           </div>
 
-          <section className="panel rise" style={{ "--i": 6, marginTop: 18 } as CSSProperties}>
+          <section className="panel rise" style={{ marginTop: 18 } as CSSProperties}>
             <h2>What the outcomes taught it</h2>
             <p className="sub" style={{ marginBottom: 12 }}>
               Weights in log-odds. Starting values encode PayPal Seller Protection rules; learned values are refit on outcomes, kept close to the start so a few cases can't swing them.
@@ -178,7 +178,7 @@ export default function Accuracy() {
             )}
           </section>
 
-          <section className="panel rise" style={{ "--i": 7, marginTop: 18 } as CSSProperties}>
+          <section className="panel rise" style={{ marginTop: 18 } as CSSProperties}>
             <h2>This app's predictions vs PayPal's rulings</h2>
             {r.real.length === 0 ? (
               <p className="sub" style={{ margin: 0 }}>
